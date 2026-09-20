@@ -1,0 +1,11 @@
+docs(README): APK 改走 Release + 补全离线模型的来源与版本陷阱
+
+- APK：正式下载位改为 GitHub Release（v1.0.0），NativeThink 的 APK_URL 已指向该 tag；
+  本地 release/ 归档保留
+- 离线模型：已走 Git LFS 入库（不再需要手工放回），补「克隆前先装 git lfs」的提醒
+- 更正来源为实测核对结果：三份都走 hf-mirror 镜像；AAR 是 sherpa-onnx-libs 的
+  static-link 变体（非普通 AAR）
+- 新增版本陷阱说明：NativeThink 的 fetch-android-tts.cjs 拉的是 kokoro v1_0
+  （voices.bin 26.9MB），本仓库插件硬编码 v1_1（51.3MB），拿 v1_0 顶替会让内置引擎
+  加载失败并静默退回系统 TTS
+- 版本控制一节：补远端地址、LFS 配额代价、以及本机 core.sshCommand 不可删的原因
