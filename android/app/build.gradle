@@ -1,0 +1,90 @@
+apply plugin: 'com.android.application'
+
+// 版本号（android:apk 脚本每次自增写入 android/version.properties）
+// Android 只接受 versionCode 递增的升级安装，否则要求先卸载 → 丢数据
+def verProps = new Properties()
+def verFile = rootProject.file('version.properties')
+if (verFile.exists()) { verFile.withInputStream { verProps.load(it) } }
+def appVersionCode = Integer.parseInt(verProps.getProperty('versionCode', '1'))
+def appVersionName = verProps.getProperty('versionName', '1.0')
+
+android {
+    namespace = "com.cetthink.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.cetthink.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // 只打包手机用得到的架构 —— x86/x86_64 仅在模拟器上有意义，
+        // 带上它们会让安装包白白多出约 42MB（内置离线朗读引擎的原生库）。
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // 固定发布签名 — 保证后续版本的安装包能"原地覆盖安装"（不卸载就不会丢数据）。
+    // 密钥库与凭据放仓库外的 android/keystore.properties（已 gitignore）。
+    def keystorePropsFile = rootProject.file('keystore.properties')
+    def hasReleaseKey = keystorePropsFile.exists()
+    signingConfigs {
+        release {
+            if (hasReleaseKey) {
+                def props = new Properties()
+                keystorePropsFile.withInputStream { props.load(it) }
+                storeFile rootProject.file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasReleaseKey) signingConfig signingConfigs.release
+        }
+        debug {
+            // debug 也用同一把固定密钥 —— 避免 debug/release 之间互相覆盖安装时要求先卸载
+            if (hasReleaseKey) signingConfig signingConfigs.release
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    // 内置离线朗读引擎 sherpa-onnx
+    implementation fileTree(include: ['*.aar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

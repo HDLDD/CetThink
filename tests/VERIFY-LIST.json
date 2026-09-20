@@ -1,0 +1,166 @@
+{
+  "pass": 32,
+  "fail": 0,
+  "checks": [
+    {
+      "name": "手机顶栏 safe-area-top",
+      "ok": true,
+      "reason": "header 使用 safe-top"
+    },
+    {
+      "name": "侧边栏 desktop/lg",
+      "ok": true,
+      "reason": "≥lg 显示侧栏"
+    },
+    {
+      "name": "手机底部 Tab + lg 隐藏",
+      "ok": true,
+      "reason": "bottom nav"
+    },
+    {
+      "name": "抽屉完整菜单",
+      "ok": true,
+      "reason": "drawer/sheet"
+    },
+    {
+      "name": "CSS safe-area-inset-top",
+      "ok": true,
+      "reason": "inset top"
+    },
+    {
+      "name": "viewport-fit=cover",
+      "ok": true,
+      "reason": "meta"
+    },
+    {
+      "name": "capacitor StatusBar 配置",
+      "ok": true,
+      "reason": "plugins.StatusBar"
+    },
+    {
+      "name": "Android styles 透明状态栏",
+      "ok": true,
+      "reason": "styles.xml"
+    },
+    {
+      "name": "全部路由注册",
+      "ok": true,
+      "reason": "14 routes"
+    },
+    {
+      "name": "CET4 id 唯一",
+      "ok": true,
+      "reason": "dup=0 size=4452"
+    },
+    {
+      "name": "听写无空包",
+      "ok": true,
+      "reason": "n=70"
+    },
+    {
+      "name": "听力>=40",
+      "ok": true,
+      "reason": "106"
+    },
+    {
+      "name": "阅读>=20",
+      "ok": true,
+      "reason": "91"
+    },
+    {
+      "name": "模考>=10",
+      "ok": true,
+      "reason": "32"
+    },
+    {
+      "name": "作文范文>=20",
+      "ok": true,
+      "reason": "74"
+    },
+    {
+      "name": "语法专题>=100",
+      "ok": true,
+      "reason": "130"
+    },
+    {
+      "name": "核心 lib 齐全",
+      "ok": true,
+      "reason": "12 files"
+    },
+    {
+      "name": "背词多元模式",
+      "ok": true,
+      "reason": "6 modes"
+    },
+    {
+      "name": "背词断点续学",
+      "ok": true,
+      "reason": "session"
+    },
+    {
+      "name": "每日队列 quota",
+      "ok": true,
+      "reason": "queue"
+    },
+    {
+      "name": "收藏带释义",
+      "ok": true,
+      "reason": "rich fav"
+    },
+    {
+      "name": "模考计时",
+      "ok": true,
+      "reason": "timer"
+    },
+    {
+      "name": "模考续考/保存",
+      "ok": true,
+      "reason": "resume"
+    },
+    {
+      "name": "复习使用 vocabKey",
+      "ok": true,
+      "reason": "level-id"
+    },
+    {
+      "name": "错题再练",
+      "ok": true,
+      "reason": "retry"
+    },
+    {
+      "name": "TTS 离线 sherpa",
+      "ok": true,
+      "reason": "offline"
+    },
+    {
+      "name": "TTS 云端兜底",
+      "ok": true,
+      "reason": "cloud"
+    },
+    {
+      "name": "听写续学",
+      "ok": true,
+      "reason": "resume"
+    },
+    {
+      "name": "听力原文可隐藏",
+      "ok": true,
+      "reason": "transcript toggle"
+    },
+    {
+      "name": "听力进度保存",
+      "ok": true,
+      "reason": "progress"
+    },
+    {
+      "name": "页面文件>=14",
+      "ok": true,
+      "reason": "14"
+    },
+    {
+      "name": "typecheck",
+      "ok": true,
+      "reason": "0 errors"
+    }
+  ]
+}

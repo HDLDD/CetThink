@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: hsl(180 25% 97%);
+  --color-foreground: hsl(210 25% 15%);
+  --color-card: hsl(0 0% 100%);
+  --color-muted: hsl(210 20% 96%);
+  --color-muted-foreground: hsl(210 12% 45%);
+  --color-border: hsl(180 15% 88%);
+  --color-primary: #00b894;
+  --color-primary-hover: #00a882;
+  --color-primary-soft: rgba(0, 184, 148, 0.12);
+  --color-ink-teal: #00846b;
+  --color-accent: #0ea5e9;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #f43f5e;
+  --color-radius-lg: 1.5rem;
+  --font-sans: "Plus Jakarta Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui,
+    sans-serif;
+}
+
+.dark {
+  --color-background: hsl(185 20% 10%);
+  --color-foreground: hsl(180 20% 94%);
+  --color-card: hsl(185 16% 14%);
+  --color-muted: hsl(185 14% 17%);
+  --color-muted-foreground: hsl(180 8% 55%);
+  --color-border: hsl(180 12% 24%);
+  --color-ink-teal: #2dd4bf;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 系统状态栏 / 刘海：顶部内容不被遮挡（Android edge-to-edge / iOS 刘海） */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-enter {
+  animation: page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stagger > * {
+  animation: card-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.stagger > *:nth-child(n + 6) {
+  animation-delay: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .stagger > * {
+    animation: none !important;
+  }
+}
+
+/* iPhone home indicator */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+}
+
+/* 手机触控目标：底部导航项不低于 48px 高 */
+nav.fixed button,
+nav.fixed a {
+  min-height: 48px;
+}
+
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 提高可点按钮反馈 */
+button:active {
+  transform: scale(0.97);
+  transition: transform 80ms ease;
+}

@@ -1,0 +1,16 @@
+{
+  "r4": {
+    "file": "vocab-cet4.json",
+    "before": 4546,
+    "after": 4452,
+    "dups": 94
+  },
+  "r6": {
+    "file": "vocab-cet6.json",
+    "before": 7408,
+    "after": 7408,
+    "dups": 0
+  },
+  "removedDictation": 3,
+  "at": 1789732697470
+}

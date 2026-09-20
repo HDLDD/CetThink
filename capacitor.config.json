@@ -1,0 +1,18 @@
+{
+  "appId": "com.cetthink.app",
+  "appName": "CetThink",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#f4faf8"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#f4faf8"
+    }
+  }
+}
