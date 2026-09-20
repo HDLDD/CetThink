@@ -24,11 +24,11 @@ android/*.jks
 android/app/src/main/assets/public
 android/app/src/main/assets/capacitor.config.json
 
-# ── 离线 TTS 模型（约 250MB，可重新获取；来源见 README「离线模型」） ──
-# 注：model.int8.onnx 单个 109MB，已超 GitHub 100MB 单文件上限，本就不能直接入库
-android/app/src/main/assets/tts
-android/app/src/main/assets/piper
-android/app/libs/sherpa-onnx-*.aar
+# ── 离线 TTS 模型（约 250MB）──
+# 曾按「不入库」处理：model.int8.onnx 单个 109MB，超 GitHub 100MB 单文件上限。
+# 现改为 Git LFS 入库（见 .gitattributes），使克隆后即可构建 APK。
+# 所以这里**故意不忽略** android/app/src/main/assets/tts、piper 与 android/app/libs/*.aar；
+# 若日后要退回「不入库」，需同时 git rm --cached 这些路径并删掉 .gitattributes 里对应规则。
 
 # ── 发布产物 ──
 release/*.apk

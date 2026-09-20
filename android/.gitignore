@@ -6,6 +6,11 @@
 *.ap_
 *.aab
 
+# 例外：sherpa-onnx 的 Android AAR 走 Git LFS 入库（见根目录 .gitattributes），
+# 离线朗读依赖它，入库后克隆即可构建 APK。子目录 .gitignore 优先级高于根目录，
+# 所以放行规则必须写在这里。
+!app/libs/*.aar
+
 # Files for the ART/Dalvik VM
 *.dex
 
