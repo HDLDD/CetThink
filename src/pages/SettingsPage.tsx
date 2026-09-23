@@ -227,10 +227,12 @@ export default function SettingsPage() {
             className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
             onClick={() => {
               if (!confirm('危险：清空全部学习数据（进度/收藏/错题/统计）？建议先导出备份。')) return;
-              store.replace(null);
-              localStorage.removeItem('cetthink_achievements');
-              toast('已清空，请刷新', 'info');
-              setTimeout(() => window.location.reload(), 600);
+              // 必须连快照与 IndexedDB 一起清：只清 main/backup 的话，
+              // 残留副本会在下次启动被当成"更完整的数据"恢复回来
+              void store.clearAll().then(() => {
+                toast('已彻底清空（含快照与 IndexedDB）', 'success');
+                setTimeout(() => window.location.reload(), 700);
+              });
             }}
           >
             危险：清空全部数据

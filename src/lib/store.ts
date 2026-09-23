@@ -2,7 +2,7 @@
  * CetThink 本地持久化 — localStorage 多副本 + IndexedDB + 可导出
  */
 
-import { loadPersistedSync, loadPersistedDeep, savePersisted } from './persist';
+import { clearAllPersisted, loadPersistedSync, loadPersistedDeep, savePersisted } from './persist';
 import { safeStorage, STORE_CHANGED_EVENT } from './safe-storage';
 import { isDue, isMastered, isNew, sanitizeProgress, startOfToday, type SrsProgress } from './srs';
 
@@ -191,15 +191,14 @@ function notify() {
   });
 }
 
-/** 启动后从 IndexedDB 深恢复（若更完整则覆盖） */
+/** 启动后从 IndexedDB 深恢复：**只认更新时间**，比当前状态新才采纳。
+ *  旧实现比"体量"（vocab 长度 + 总分钟），于是清空后残留的旧副本体量更大 → 数据回滚。 */
 export async function hydrateFromDeepStorage(): Promise<boolean> {
   try {
     const deep = await loadPersistedDeep();
     if (!deep) return false;
     const next = normalize(JSON.parse(deep));
-    const curScore = JSON.stringify(state.vocab).length + state.profile.totalMinutes;
-    const nextScore = JSON.stringify(next.vocab).length + next.profile.totalMinutes;
-    if (nextScore > curScore) {
+    if ((next.updatedAt || 0) > (state.updatedAt || 0)) {
       state = next;
       save();
       notify();
@@ -210,6 +209,20 @@ export async function hydrateFromDeepStorage(): Promise<boolean> {
   }
   return false;
 }
+
+/** 学习数据相关但没走 safeStorage 的裸键（清空数据时必须一并清掉，否则首页仍显示旧痕迹） */
+const NAKED_DATA_KEYS = [
+  'last_visit',
+  'cetthink_last_visit',
+  'favorite_meta',
+  'cetthink_achievements',
+  'cetthink_read_pos',
+  'cetthink_listen_pos',
+  'cetthink_dict_pack',
+  'cetthink_dict_idx',
+  'cetthink_exam_progress',
+  'cetthink_tts_last',
+];
 
 export function vocabKey(level: number | string, id: number | string) {
   return `${level}-${id}`;
@@ -227,6 +240,28 @@ export const store = {
   /** 供导入备份整包替换 */
   replace(next: unknown) {
     state = normalize(next);
+    save();
+    notify();
+    return state;
+  },
+  /**
+   * 彻底清空学习数据：多副本 + 快照 + IndexedDB + 作用域键 + 裸键。
+   * 旧实现只写 main/backup 两份空状态，残留的 snapshot/IDB 分更高，
+   * 下次启动就被"恢复"回来 —— 用户以为清空了，实际数据还在。
+   */
+  async clearAll() {
+    await clearAllPersisted();
+    try {
+      const prefix = safeStorage.getPrefixedKey('');
+      for (const k of Object.keys(localStorage)) {
+        if ((prefix && k.startsWith(prefix)) || k.startsWith('pm_') || NAKED_DATA_KEYS.includes(k)) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    state = defaultState();
     save();
     notify();
     return state;

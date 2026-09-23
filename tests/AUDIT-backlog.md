@@ -61,8 +61,8 @@
 ## 三、写作 / 进度 / 设置 / 数据层
 
 ### P0
-28. **「清空全部数据」清不干净**：`persist.ts:134-135` 只写 main/backup，旧 snapshot 评分更高（`:95-103`）→ 刷新后数据复活；作用域键（`pm_*`/`last_visit`/`learning_stats`）未清。参考 `ProgressPage.tsx:258-278`。
-29. **深恢复按体量取胜**：`store.ts:213-214` 忽略已有 `updatedAt`；写盘失败静默（`persist.ts:123-129`）。
+28. ~~「清空全部数据」清不干净~~ **已修**：`persist.pickBest()` 改为**先比 `updatedAt`**（旧实现只比痕迹分 → 空状态输给旧 snapshot → 刷新复活）；新增 `clearAllPersisted()`（main/backup/snapshot/last_save/save_count + IDB delete）与 `store.clearAll()`（连作用域键与裸键一起清）；`savePersisted` 返回写入结果。真机回归 7/7：清空前 20 词 → 清空后 0 → **刷新后仍 0、IDB 深恢复也未带回**。
+29. ~~深恢复按体量取胜~~ **已修**：`hydrateFromDeepStorage` 改为只认 `updatedAt` 更新者；`save()` 写盘失败不再谎报"上次保存时间"。
 
 ### P1
 30. **统计失真**：学习天数恒 0（`App.tsx:52`）、目标分=词数、词进度无分母；`use-memory.ts:100-124` 让 saved 覆盖派生值。

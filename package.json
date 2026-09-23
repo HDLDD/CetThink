@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.app.json --noEmit && vite build --outDir dist",
     "preview": "vite preview --port 4174",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "test": "node tests/srs.test.mjs && node tests/full-suite.mjs && node tests/full-suite-part2.mjs && node tests/verify-features.mjs",
+    "test": "node tests/srs.test.mjs && node tests/persist.test.mjs && node tests/full-suite.mjs && node tests/full-suite-part2.mjs && node tests/verify-features.mjs",
     "data:import": "node scripts/import-cet-data.mjs",
     "android:sync": "npm run build && npx cap sync android",
     "android:apk": "npm run build && npx cap sync android && cd android && gradlew.bat assembleDebug"
