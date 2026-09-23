@@ -202,7 +202,12 @@ export default function Shell({ children }: { children: ReactNode }) {
           <div
             className={cn(
               'safe-bottom absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-hidden rounded-t-3xl border-t border-border/60 bg-card shadow-2xl',
-              drawerOpen && 'bottom-auto right-auto top-0 h-full max-h-none w-[280px] rounded-none rounded-r-3xl border-r border-t-0',
+              // 抽屉（☰）从 top-0 铺满整屏，必须自带 safe-top：状态栏是透明的
+              // （styles.xml: statusBarColor=transparent + targetSdk 36 强制 edge-to-edge），
+              // 少了它「CetThink 菜单」标题行与 ✕ 会落进状态栏带里 —— 即「顶部被遮住」。
+              // 底部弹出的「全部模块」是 max-h-[85vh] 底部面板、顶端不贴屏，故不需要。
+              drawerOpen &&
+                'safe-top bottom-auto right-auto top-0 h-full max-h-none w-[280px] rounded-none rounded-r-3xl border-r border-t-0',
             )}
           >
             <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">

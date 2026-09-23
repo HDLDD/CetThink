@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Volume2 } from 'lucide-react';
 import { store, vocabKey } from '../lib/store';
+import { DAY, isDue, sm2Update } from '../lib/srs';
 import { tts } from '../lib/tts';
 import { sfx } from '../lib/sfx';
 import type { Word } from './VocabPage';
@@ -29,17 +30,17 @@ export default function ReviewPage() {
       .then((all) => {
         if (cancelled) return;
         const now = Date.now();
-        const due = all.filter((w) => {
-          const p = store.getVocab(vocabKey(level, w.id));
-          return p && p.reps > 0 && p.due <= now && p.mastery < 0.95;
-        });
+        // 到期判定与首页/store 共用 srs.isDue（原先这里另写一遍条件，
+        // 且要求 reps > 0 —— 答错后 reps 归零的词从此永远进不了复习队列）
+        const due = all.filter((w) => isDue(store.getVocab(vocabKey(level, w.id)), now));
         // 优先最久未复习
         due.sort((a, b) => {
           const pa = store.getVocab(vocabKey(level, a.id));
           const pb = store.getVocab(vocabKey(level, b.id));
           return (pa?.due || 0) - (pb?.due || 0);
         });
-        setQueue(due.slice(0, 50));
+        // 不再硬截 50：截断后页面会谎报"当前没有到期复习"
+        setQueue(due);
         setI(0);
         setShow(false);
       })
@@ -78,30 +79,10 @@ export default function ReviewPage() {
   const key = vocabKey(level, w.id);
 
   const grade = (q: number) => {
-    const prev = store.getVocab(key) || {
-      ease: 2.5, interval: 0, reps: 0, due: 0, mastery: 0, lapses: 0, lastWord: w.word,
-    };
-    let { ease, interval, reps, mastery, lapses } = prev;
-    if (q >= 3) {
-      interval = reps === 0 ? 1 : reps === 1 ? 3 : Math.max(interval, Math.round(interval * ease));
-      reps += 1;
-      mastery = Math.min(1, mastery + 0.15);
-    } else {
-      reps = 0;
-      interval = 1;
-      lapses += 1;
-      mastery = Math.max(0, mastery - 0.2);
-    }
-    ease = Math.max(1.3, ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
-    store.setVocab(key, {
-      ease,
-      interval,
-      reps,
-      due: Date.now() + interval * 86400000,
-      mastery,
-      lapses,
-      lastWord: w.word,
-    });
+    const prev = store.getVocab(key);
+    // 与背词页共用 sm2Update：原先这里 mastery +0.15/-0.2、间隔 max(i, i*e)，
+    // 与背词页的 +0.2/-0.15、max(1, i*e) 分歧，同一个词两页结果不同
+    store.setVocab(key, sm2Update(prev, q, Date.now(), w.word));
     store.recordStudy(0, 0, 1);
     if (q >= 3) sfx.correct();
     else sfx.wrong();
@@ -109,11 +90,14 @@ export default function ReviewPage() {
     setI((n) => n + 1);
   };
 
+  const p = store.getVocab(key);
+  const nextDays = p && p.status !== 'new' ? Math.max(0, Math.round((p.due - Date.now()) / DAY)) : null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-muted-foreground">
-          到期 {queue.length - i} / 本批 {queue.length}
+          到期 {queue.length - i} 个{nextDays != null ? ` · 本轮词下次复习 ${nextDays} 天后` : ''}
         </p>
         <button
           type="button"

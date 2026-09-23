@@ -8,6 +8,7 @@ import { DEFAULT_LOCAL_VOICE_ID, FALLBACK_VOICE, findLocalVoice } from './tts-vo
 
 const TRY_KEY = 'cetthink_sherpa_try';
 const OFF_KEY = 'cetthink_sherpa_off';
+const FAIL_KEY = 'cetthink_sherpa_fail';
 const VOICE_KEY = 'cetthink_local_voice';
 
 export function isBundledEngineDisabled(): boolean {
@@ -43,14 +44,24 @@ export function setLocalVoiceId(id: string) {
   }
 }
 
-/** 启动时：上次加载未完成 → 自动停用，防反复崩溃 */
+/** 启动时健康检查：上次加载未完成 → 记一次失败；**连续 2 次**才停用。
+ *  旧版一次被杀（例如首次启动加载 Kokoro 时退到后台/被杀）就把离线引擎永久关掉，
+ *  而 warmSherpa 在禁用态直接早退 → 永远无法自愈，只能在设置页手动恢复。
+ *  真机实测后果：朗读静默失败、按钮卡在「朗读中」。 */
 export function checkBundledEngineHealth(): void {
   try {
+    const fail = Number(localStorage.getItem(FAIL_KEY) || 0);
+    // 兼容旧数据：只有 OFF 没有计数，无法区分"真失败"和"被杀"，给一次重试机会
+    if (localStorage.getItem(OFF_KEY) === '1' && fail === 0) {
+      localStorage.removeItem(OFF_KEY);
+    }
     if (localStorage.getItem(OFF_KEY) === '1') return;
     const t = Number(localStorage.getItem(TRY_KEY) || 0);
     if (t > 0) {
-      localStorage.setItem(OFF_KEY, '1');
       localStorage.removeItem(TRY_KEY);
+      const next = fail + 1;
+      localStorage.setItem(FAIL_KEY, String(next));
+      if (next >= 2) localStorage.setItem(OFF_KEY, '1');
     }
   } catch {
     /* ignore */
@@ -108,6 +119,11 @@ export function warmSherpa(): Promise<ISherpaStatus | null> {
         if (s?.status === 'ready') {
           try {
             localStorage.removeItem(TRY_KEY);
+            localStorage.removeItem(FAIL_KEY);
+            // 自愈：上一轮若是在加载途中被杀（TRY_KEY 残留）而被健康检查禁用，
+            // 这次既然加载成功，就必须解除禁用 —— 否则离线引擎会被永久关掉，
+            // 只能去设置页手动恢复（真机实测：禁用后朗读静默失败且按钮卡在「朗读中」）。
+            localStorage.removeItem(OFF_KEY);
           } catch {
             /* ignore */
           }

@@ -4,18 +4,12 @@
 
 import { loadPersistedSync, loadPersistedDeep, savePersisted } from './persist';
 import { safeStorage, STORE_CHANGED_EVENT } from './safe-storage';
+import { isDue, isMastered, isNew, sanitizeProgress, startOfToday, type SrsProgress } from './srs';
 
 export type ExamLevel = 'CET-4' | 'CET-6';
 
-export interface VocabProgress {
-  ease: number;
-  interval: number;
-  reps: number;
-  due: number;
-  mastery: number;
-  lapses: number;
-  lastWord?: string;
-}
+/** 词进度：唯一实现在 lib/srs.ts（status 状态机 + 数值兜底） */
+export type VocabProgress = SrsProgress;
 
 export interface ErrorItem {
   id: string;
@@ -133,17 +127,10 @@ function migrateVocab(raw: Record<string, unknown>): Record<string, VocabProgres
   const out: Record<string, VocabProgress> = {};
   for (const [k, v] of Object.entries(raw || {})) {
     if (!v || typeof v !== 'object') continue;
-    const p = v as VocabProgress;
     const id = k.includes('-') ? k : `4-${k}`;
-    out[id] = {
-      ease: p.ease ?? 2.5,
-      interval: p.interval ?? 0,
-      reps: p.reps ?? 0,
-      due: p.due ?? 0,
-      mastery: p.mastery ?? 0,
-      lapses: p.lapses ?? 0,
-      lastWord: p.lastWord,
-    };
+    // sanitizeProgress 一次完成：数值兜底（NaN → 默认）+ 老数据 status 回填
+    // （reps>0 → reviewing/mastered；只有 lapses/interval → learning）
+    out[id] = sanitizeProgress(v);
   }
   return out;
 }
@@ -448,7 +435,7 @@ export const store = {
       const key = `${levelNum}-${w.id}`;
       if (seen.has(key)) continue;
       const p = state.vocab[key];
-      if (!p || p.reps === 0) {
+      if (isNew(p)) {
         seen.add(key);
         queue.push({ id: w.id, word: w.word, key });
       }
@@ -459,7 +446,7 @@ export const store = {
         const key = `${levelNum}-${w.id}`;
         if (seen.has(key)) continue;
         const p = state.vocab[key];
-        if (p && p.reps > 0 && (p.mastery || 0) < 0.6) {
+        if (p && !isNew(p) && !isMastered(p) && p.mastery < 0.6) {
           seen.add(key);
           queue.push({ id: w.id, word: w.word, key });
         }
@@ -467,21 +454,33 @@ export const store = {
     }
     return queue;
   },
-  /** 今日剩余新词名额 */
+  /**
+   * 今日新学 / 复习数 —— 直接从词进度派生（firstAt / lastAt），
+   * 不再依赖会话里的 todayNew/todayReview，消除"首页进度环满了、背词页仍显示剩余 30"的双计数。
+   */
+  dailyCounters(level?: number | string): { learned: number; reviewed: number } {
+    const t0 = startOfToday();
+    const prefix = level == null ? null : `${level === 'CET-6' || level === 6 ? 6 : 4}-`;
+    let learned = 0;
+    let reviewed = 0;
+    for (const [k, p] of Object.entries(state.vocab)) {
+      if (prefix && !k.startsWith(prefix)) continue;
+      if (p.firstAt && p.firstAt >= t0) learned += 1;
+      else if (p.lastAt && p.lastAt >= t0) reviewed += 1;
+    }
+    return { learned, reviewed };
+  },
+  /** 今日剩余新词名额（与 dailyCounters 同源，跨天自动归零） */
   dailyNewRemaining(level: number | string): number {
-    const levelNum = level === 'CET-6' || level === 6 ? 6 : 4;
-    const sessKey = `CET-${levelNum}`;
-    const today = todayKey();
-    const sess = state.ui.vocabSession?.[sessKey];
-    const todayNew = sess?.todayDate === today ? sess.todayNew || 0 : 0;
-    return Math.max(0, (state.settings.dailyWordTarget || 30) - todayNew);
+    return Math.max(0, (state.settings.dailyWordTarget || 30) - store.dailyCounters(level).learned);
   },
   /** 未掌握词列表（供「只练弱词」） */
   listWeakWords(words: { id: number; word: string }[], level: number | string) {
     const levelNum = level === 'CET-6' || level === 6 ? 6 : 4;
     return words.filter((w) => {
       const p = state.vocab[`${levelNum}-${w.id}`];
-      return !p || p.reps === 0 || (p.mastery || 0) < 0.6;
+      if (isNew(p)) return true;
+      return !isMastered(p) && (p?.mastery ?? 0) < 0.6;
     });
   },
   /** 模块活跃度（进度页柱图） */
@@ -508,14 +507,13 @@ export const store = {
     }
     return out;
   },
-  /** 到期复习数量（供首页展示） */
+  /** 到期复习数量（供首页展示）—— 与复习页共用 isDue 判定 */
   dueReviewCount(words: { id: number }[], level: number | string): number {
     const levelNum = level === 'CET-6' || level === 6 ? 6 : 4;
     const now = Date.now();
     let n = 0;
     for (const w of words) {
-      const p = state.vocab[`${levelNum}-${w.id}`];
-      if (p && p.reps > 0 && p.due <= now && (p.mastery || 0) < 0.95) n++;
+      if (isDue(state.vocab[`${levelNum}-${w.id}`], now)) n++;
     }
     return n;
   },

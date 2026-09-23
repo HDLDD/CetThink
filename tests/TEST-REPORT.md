@@ -1,6 +1,6 @@
 # CetThink 全功能测试报告
 
-- 时间: 2026-09-20T17:49:21.767Z
+- 时间: 2026-09-23T16:57:12.071Z
 - 方法: 每条逻辑路径重复 20 次；数据全量校验；源码/路由/资源静态扫描；tsc
 - 结果: **PASS 67** · WARN 0 · **FAIL 0** · 共 67 项
 
@@ -22,7 +22,7 @@
 - ✅ `背词` 快刷认识/不认识 20 次
 - ✅ `背词` 选择题选项判定 20 次 — ok=20/20
 - ✅ `背词` 拼写判定 20 次
-- ✅ `背词` 重启后会话位置保留 — {"mode":"flashcard","idx":25,"todayDate":"2026-09-21","todayNew":0,"todayReview":0,"lastWord":"resume","sessionId":"s1","updatedAt":1789926558325}
+- ✅ `背词` 重启后会话位置保留 — {"mode":"flashcard","idx":25,"todayDate":"2026-09-24","todayNew":0,"todayReview":0,"lastWord":"resume","sessionId":"s1","updatedAt":1790182629742}
 - ✅ `复习` 到期队列查询 20 次
 - ✅ `复习` key 与背词一致（4-7 可查，7 不可）
 - ✅ `复习` 复习评分 20 次

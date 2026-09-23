@@ -1,11 +1,28 @@
-docs(README): APK 改走 Release + 补全离线模型的来源与版本陷阱
+fix(vocab,tts): 修 SM-2 失效路径 + 朗读链路真机不可用；补审计清单
 
-- APK：正式下载位改为 GitHub Release（v1.0.0），NativeThink 的 APK_URL 已指向该 tag；
-  本地 release/ 归档保留
-- 离线模型：已走 Git LFS 入库（不再需要手工放回），补「克隆前先装 git lfs」的提醒
-- 更正来源为实测核对结果：三份都走 hf-mirror 镜像；AAR 是 sherpa-onnx-libs 的
-  static-link 变体（非普通 AAR）
-- 新增版本陷阱说明：NativeThink 的 fetch-android-tts.cjs 拉的是 kokoro v1_0
-  （voices.bin 26.9MB），本仓库插件硬编码 v1_1（51.3MB），拿 v1_0 顶替会让内置引擎
-  加载失败并静默退回系统 TTS
-- 版本控制一节：补远端地址、LFS 配额代价、以及本机 core.sshCommand 不可删的原因
+## 背词/复习（本轮重点，用户指认问题最集中）
+- 新增 src/lib/srs.ts：SM-2 唯一实现（status 状态机 + 数值兜底 + isDue/forecast/relearn）
+  · 修 P0：reps 一字段双关 → 答错的词 ① 被复习队列永久过滤 ② 又被当新词吃每日名额
+  · 答错后 status 落 learning、due 10 分钟后，仍在复习队列；连续答对 5 次才 mastered
+  · sanitizeProgress 兜住 NaN（旧数据 interval=NaN → due=NaN → 永不到期静默消失）
+- store.ts：migrateVocab 走 sanitize（老数据 status 回填）；due/weak/新词队列统一判定；
+  新增 dailyCounters() 由 firstAt/lastAt 派生 → 背词页名额与首页进度环单一来源、跨天自动归零
+- VocabPage/ReviewPage：共用 sm2Update；评分收敛到唯一 commit() 入口（原先一条路径 5 次写库）；
+  加 rated 幂等守卫（回看不再重复加 reps）；词库浏览模式不再出现评分行（不静默改写 SM-2）
+- tests/srs.test.mjs：直接 import 真实现（原先只测 mock）28 项全过，已接入 npm test
+
+## 朗读（真机实测：此前完全不出声且按钮卡死）
+- 根因三条：① 离线引擎被健康检查永久禁用（一次被杀就关，且禁用态直接早退无法自愈）
+  ② 安卓原生 TTS 插件缺本地音色时永久挂起，无超时 → 整条降级链卡死
+  ③ 落到安卓 WebView 的 speechSynthesis：无声且 onend 不触发 → speaking 永久 true
+- 修法：健康检查改「连续 2 次才停用」+ 加载成功自愈；nativeSpeak 加 2.5s 超时；
+  speakWeb 在安卓直接返回 false；speak() 用 once(onEnd) + 看门狗（绝不卡在朗读中）
+- 真机验证：改走离线 sherpa（_capacitor_file_ 本地 wav）、按钮正常回落、禁用标记自愈
+
+## 布局
+- Shell 抽屉补 safe-top（原先标题行落进状态栏）；GlobalWordSearch 改 portal 到 body
+  （backdrop-filter 使其成为 fixed 后代包含块，遮罩原先只盖住顶栏一条）
+
+## 审计产物
+- tests/AUDIT-device.md：14 路由真机多维实测（文本量/越界/触控目标/遮挡/异常）
+- tests/AUDIT-backlog.md：4 份代码审计 + 真机结论汇总，按 P0/P1/P2 排序的执行清单

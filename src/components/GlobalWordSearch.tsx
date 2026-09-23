@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { tts } from '../lib/tts';
@@ -67,19 +68,37 @@ export default function GlobalWordSearch() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
+  /** 面板顶部 = 顶栏下沿 + 8px。顶栏高 = safe-area-inset-top + 56px(h-14) + 1px 边框，
+   *  写死数值会在刘海机上错位，故开面板时实测一次。 */
+  const [panelTop, setPanelTop] = useState(64);
+  const openSearch = () => {
+    const r = document.querySelector('header')?.getBoundingClientRect();
+    setPanelTop(Math.round(r ? r.bottom + 8 : 64));
+    setOpen(true);
+  };
+
   return (
     <>
       <button
         type="button"
         aria-label="查词"
-        onClick={() => setOpen(true)}
+        onClick={openSearch}
         className="grid size-10 shrink-0 place-items-center rounded-2xl border border-border/60 bg-card shadow-sm active:scale-95"
       >
         <Search className="size-4 text-muted-foreground" />
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-14 backdrop-blur-sm">
+      {/* 浮层必须 portal 到 body：本组件挂在 <header> 里，而 header 有 backdrop-blur-xl ——
+          backdrop-filter 会让该元素成为 fixed 后代的包含块，于是这里的 fixed inset-0
+          只覆盖顶栏那一条（真机实测 rect = 顶栏本身：top 47 / 高 103），遮罩压不到整页、
+          面板还会从顶栏里戳出来，表现就是「顶部被遮住 + 顶栏按键被压淡」。
+          portal 到 body 后 fixed 才真正相对视口。 */}
+      {open &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 backdrop-blur-sm"
+            style={{ paddingTop: panelTop }}
+          >
           <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl">
             <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3">
               <Search className="size-4 text-muted-foreground" />
@@ -132,8 +151,9 @@ export default function GlobalWordSearch() {
               </Link>
             </div>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

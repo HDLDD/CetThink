@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { store, vocabKey } from '../lib/store';
+import { isNew, sm2Update } from '../lib/srs';
 import { tts } from '../lib/tts';
 import { sfx } from '../lib/sfx';
 import { cn } from '../lib/cn';
@@ -124,8 +125,13 @@ export default function VocabPage() {
   const [choicePicked, setChoicePicked] = useState<string | null>(null);
   const [spellInput, setSpellInput] = useState('');
   const [spellChecked, setSpellChecked] = useState(false);
-  const [sessionNew, setSessionNew] = useState(session?.todayNew || 0);
-  const [sessionRev, setSessionRev] = useState(session?.todayReview || 0);
+  // 今日新学 / 复习从词进度派生（srs 的 firstAt/lastAt）：
+  // 跨天自动归零，也不再与首页进度环出现"两个计数器各说各话"
+  const counters = store.dailyCounters(bookKey);
+  const sessionNew = counters.learned;
+  const sessionRev = counters.reviewed;
+  /** 本轮已评分，防止「回看上一个」后重复评分导致 reps 多加 */
+  const [rated, setRated] = useState(false);
   const [onlyWeak, setOnlyWeak] = useState(false);
   const [searchJump, setSearchJump] = useState('');
   const [displayWords, setDisplayWords] = useState<Word[]>(words);
@@ -162,8 +168,6 @@ export default function VocabPage() {
         const savedIdx = s?.idx ?? store.getVocabIdx(bookKey);
         setIdx(Math.min(Math.max(0, savedIdx), Math.max(0, arranged.length - 1)));
         setMode((s?.mode as Mode) || 'flashcard');
-        setSessionNew(s?.todayNew || 0);
-        setSessionRev(s?.todayReview || 0);
         if (s?.idx != null && s.idx > 0) {
           toast(`继续上次：${s.lastWord || '词汇'} · 第 ${s.idx + 1} 词 · ${MODES.find((m) => m.key === s.mode)?.label || ''}`, 'info', 2800);
         }
@@ -263,64 +267,49 @@ export default function VocabPage() {
     setSpellInput('');
     setSpellChecked(false);
     setChoicePicked(null);
+    setRated(false);
     const next = Math.max(0, Math.min(words.length - 1, idx + n));
     setIdx(next);
     persist({ idx: next });
   };
 
-  const applySM2 = (q: number) => {
+  /**
+   * 唯一评分入口 —— 状态机在 lib/srs.ts，计数与音效都在这里。
+   * 修掉三处旧问题：① 答错的词 reps 归零后不再被当新词（isNew 看 status）；
+   * ② 新词/复习分类只按"评分前是不是新词"，不再无条件按复习计；
+   * ③ 每条路径只写一次 store。
+   */
+  const commit = (q: number) => {
     if (!w) return;
-    const prev = store.getVocab(key) || {
-      ease: 2.5, interval: 0, reps: 0, due: 0, mastery: 0, lapses: 0, lastWord: w.word,
-    };
-    let { ease, interval, reps, mastery: m, lapses } = prev;
-    if (q >= 3) {
-      interval = reps === 0 ? 1 : reps === 1 ? 3 : Math.max(1, Math.round(interval * ease));
-      reps += 1;
-      m = Math.min(1, m + 0.2);
-    } else {
-      reps = 0; interval = 1; lapses += 1;
-      m = Math.max(0, m - 0.15);
-    }
-    ease = Math.max(1.3, ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)));
-    store.setVocab(key, { ease, interval, reps, due: Date.now() + interval * 86400000, mastery: m, lapses, lastWord: w.word });
+    const prev = store.getVocab(key);
+    const wasNew = isNew(prev);
+    store.setVocab(key, sm2Update(prev, q, Date.now(), w.word));
+    store.recordStudy(0, wasNew ? 1 : 0, wasNew ? 0 : 1);
     if (q >= 3) sfx.correct();
     else sfx.wrong();
   };
 
   const gradeAndNext = (q: number) => {
-    if (!w) return;
+    if (!w || rated) return;
     // 默认不强制翻面；设置里可打开 requireFlip
     if (!flipped && state.settings.requireFlip) {
       setFlipped(true);
       toast('设置要求先看释义（可在设置关闭）', 'info');
       return;
     }
-    const prev = store.getVocab(key);
-    const isReview = !!(prev && prev.reps > 0);
-    applySM2(q);
-    store.recordStudy(0, 1, isReview ? 1 : 0);
-    const nRev = sessionRev + (isReview ? 1 : 0);
-    const nNew = sessionNew + (isReview ? 0 : 1);
-    setSessionRev(nRev);
-    setSessionNew(nNew);
+    setRated(true);
+    commit(q);
     const nextIdx = Math.min(words.length - 1, idx + 1);
-    persist({ idx: nextIdx, todayReview: nRev, todayNew: nNew, mode });
+    persist({ idx: nextIdx, mode });
     go(1);
   };
 
   const quickMark = (known: boolean) => {
-    if (!w) return;
-    const prev = store.getVocab(key);
-    const isReview = !!(prev && prev.reps > 0);
-    applySM2(known ? 4 : 1);
-    store.recordStudy(0, 1, isReview ? 1 : 0);
-    const nRev = sessionRev + (isReview ? 1 : 0);
-    const nNew = sessionNew + (isReview ? 0 : 1);
-    setSessionRev(nRev);
-    setSessionNew(nNew);
+    if (!w || rated) return;
+    setRated(true);
+    commit(known ? 4 : 1);
     const nextIdx = Math.min(words.length - 1, idx + 1);
-    persist({ idx: nextIdx, todayReview: nRev, todayNew: nNew, mode });
+    persist({ idx: nextIdx, mode });
     sfx.click();
     go(1);
   };
@@ -328,22 +317,9 @@ export default function VocabPage() {
   const checkChoice = (opt: { text: string; ok: boolean }) => {
     if (choicePicked || !w) return;
     setChoicePicked(opt.text);
-    const prev = store.getVocab(key);
-    const isReview = !!(prev && prev.reps > 0);
-    if (opt.ok) {
-      sfx.correct();
-      applySM2(4);
-      store.recordStudy(0, 1, isReview ? 1 : 0);
-      toast('正确', 'success');
-    } else {
-      sfx.wrong();
-      applySM2(1);
-      store.recordStudy(0, 0, 0);
-      toast(`正确：${w.meaning}`, 'error');
-    }
-    const nRev = sessionRev + 1;
-    setSessionRev(nRev);
-    persist({ idx, todayReview: nRev, mode });
+    commit(opt.ok ? 4 : 1);
+    toast(opt.ok ? '正确' : `正确：${w.meaning}`, opt.ok ? 'success' : 'error');
+    persist({ idx, mode });
     // 答完自动前进，避免卡在原题
     const adv = state.settings.autoAdvanceMs || 0;
     if (adv > 0) window.setTimeout(() => go(1), opt.ok ? adv : Math.max(adv, 900));
@@ -353,21 +329,9 @@ export default function VocabPage() {
     if (!w || !spellInput.trim()) return;
     const ok = spellInput.trim().toLowerCase() === w.word.toLowerCase();
     setSpellChecked(true);
-    const prev = store.getVocab(key);
-    const isReview = !!(prev && prev.reps > 0);
-    if (ok) {
-      sfx.correct();
-      applySM2(4);
-      store.recordStudy(0, 1, isReview ? 1 : 0);
-      toast('正确', 'success');
-    } else {
-      sfx.wrong();
-      applySM2(1);
-      toast(`正确拼写：${w.word}`, 'error');
-    }
-    const nRev = sessionRev + 1;
-    setSessionRev(nRev);
-    persist({ idx, todayReview: nRev, mode });
+    commit(ok ? 4 : 1);
+    toast(ok ? '正确' : `正确拼写：${w.word}`, ok ? 'success' : 'error');
+    persist({ idx, mode });
     const adv = state.settings.autoAdvanceMs || 0;
     if (adv > 0) window.setTimeout(() => go(1), ok ? adv : Math.max(adv, 900));
   };
@@ -571,8 +535,7 @@ export default function VocabPage() {
               if (!confirm('从头开始会清空本词书会话进度（词掌握记录保留）。确定？')) return;
               store.resetVocabSession(bookKey);
               setIdx(0);
-              setSessionNew(0);
-              setSessionRev(0);
+              setRated(false);
               toast('已从头开始', 'info');
             }}
           >
@@ -776,8 +739,8 @@ export default function VocabPage() {
         )}
       </div>
 
-      {/* 评分 / 快刷 */}
-      {(mode === 'flashcard' || mode === 'daily' || mode === 'browse') && (
+      {/* 评分 / 快刷 —— browse（词库浏览）不参与评分：翻词库不该静默改写 SM-2 进度 */}
+      {(mode === 'flashcard' || mode === 'daily') && (
         <div className="grid grid-cols-4 gap-2">
           {([1, 3, 4, 5] as const).map((q) => (
             <button
