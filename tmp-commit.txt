@@ -1,16 +1,9 @@
-fix(persist): 修「清空数据被旧副本复活」与「深恢复按体量取胜」两个 P0
+docs(plan): CetThink × NativeThink 对齐重构计划（8 阶段 / 约 12 工作日）
 
-- persist.pickBest()：选副本改为**先比 updatedAt**，同刻再比痕迹分。
-  旧实现只比 scoreRaw → 「清空全部数据」写出的是空状态（分低），
-  残留的旧 snapshot/IDB 分更高，刷新后旧数据原地复活。
-- 新增 clearAllPersisted()：main/backup/snapshot/last_save/save_count + IDB delete
-  只清 main/backup 不够 —— 这正是复活源头。
-- store.clearAll()：连作用域键（safeStorage 前缀）与裸键（pm_*/last_visit/
-  favorite_meta/achievements/位置键）一起清，并重置为 defaultState。
-- store.hydrateFromDeepStorage()：改为只认 updatedAt 更新的副本（原先比 vocab 长度+分钟）。
-- savePersisted() 返回写入结果、写盘失败不再更新"上次保存时间"（配额打满时不再谎报已保存）。
-- SettingsPage：清空按钮改调 store.clearAll()，提示改为"已彻底清空（含快照与 IndexedDB）"。
-- tests/persist.test.mjs：12 项纯函数回归（旧的"大"副本 vs 新的空状态必须选空状态），已接入 npm test。
-
-真机回归（Redmi/Android16，adb+CDP）7/7：
-  清空前 main=20 词 → 清空后 0 → 刷新后仍 0 → IDB 深恢复也未带回；快照被重建但内容为空。
+- 差异对照：状态层/持久化/词库数据/UI 基元/外壳布局/反馈/动画/图表/背词/朗读/统计/表单/本地 AI 共 13 维
+- 目标文件结构：components/ui（55 基元）、lib/use-*.ts 分域 hooks、data/wordbank、pages/<Page>/ 目录化、tests/device 常驻验收
+- 阶段 0 基线与护栏（CDP 验收脚本转正）→ 1 数据地基（分级词库 + 分域键 + v1→v2 迁移）
+  → 2 UI 基元与外壳 → 3 背词域 → 4 朗读与阅读器 → 5 听力/听写/模考 → 6 统计/成就/进度/写作 → 7 收尾与全量验收
+- 阶段 0–1 细化到逐步可执行（含接口签名、命令、期望输出）；2–7 给任务清单与验收标准，进入时展开
+- 全局约束：禁止 npm install（node_modules 是指向 NativeThink 的 junction）、数据零丢失、每阶段可真机验收 + tag 回滚点
+- 与 AUDIT-backlog.md 60 条逐阶段映射；明确非目标（本地 LLM / 云同步不在本次范围）
