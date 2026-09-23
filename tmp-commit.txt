@@ -1,9 +1,0 @@
-docs(plan): CetThink × NativeThink 对齐重构计划（8 阶段 / 约 12 工作日）
-
-- 差异对照：状态层/持久化/词库数据/UI 基元/外壳布局/反馈/动画/图表/背词/朗读/统计/表单/本地 AI 共 13 维
-- 目标文件结构：components/ui（55 基元）、lib/use-*.ts 分域 hooks、data/wordbank、pages/<Page>/ 目录化、tests/device 常驻验收
-- 阶段 0 基线与护栏（CDP 验收脚本转正）→ 1 数据地基（分级词库 + 分域键 + v1→v2 迁移）
-  → 2 UI 基元与外壳 → 3 背词域 → 4 朗读与阅读器 → 5 听力/听写/模考 → 6 统计/成就/进度/写作 → 7 收尾与全量验收
-- 阶段 0–1 细化到逐步可执行（含接口签名、命令、期望输出）；2–7 给任务清单与验收标准，进入时展开
-- 全局约束：禁止 npm install（node_modules 是指向 NativeThink 的 junction）、数据零丢失、每阶段可真机验收 + tag 回滚点
-- 与 AUDIT-backlog.md 60 条逐阶段映射；明确非目标（本地 LLM / 云同步不在本次范围）

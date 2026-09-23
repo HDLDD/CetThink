@@ -32,3 +32,6 @@ android/app/src/main/assets/capacitor.config.json
 
 # ── 发布产物 ──
 release/*.apk
+
+# 提交信息临时文件（每次提交写一次，不必入库）
+tmp-commit.txt
